@@ -1,0 +1,91 @@
+-- 01. VUES :
+
+-- Créez une vue qui affiche le catalogue produits. L'id, la référence et le nom des produits, ainsi que l'id et le nom de la catégorie doivent apparaître.
+
+
+CREATE VIEW v_catalogue_produits
+AS
+SELECT products.pro_id as "N° de produit", products.pro_ref as "Référence produit", products.pro_name as "Nom du produit", categories.cat_id as "N° de catégorie", categories.cat_name as "Catégorie"
+FROM products
+JOIN categories ON categories.cat_id = products.pro_cat_id
+
+-- 02. PROCÉDURE STOCKÉES :
+
+-- Créez la procédure stockée facture qui permet d'afficher les informations nécessaires à une facture en fonction d'un numéro de commande.
+-- Cette procédure doit sortir le montant total de la commande.
+-- /!\ Pensez à vous renseigner sur les informations légales que doit comporter une facture.
+
+
+
+
+-- 03. Triggers
+-- Présentez le déclencheur after_products_update demandé dans la phase 2 de la séance sur les déclencheurs.
+
+DELIMITER ;;
+
+Create TRIGGER after_products_update 
+AFTER UPDATE ON products
+FOR EACH ROW
+
+BEGIN
+    IF NEW.pro_stock < NEW.pro_stock_alert THEN
+        INSERT  INTO commander_articles (qte,codart,date) VALUES ((NEW.pro_stock_alert - NEW.pro_stock),NEW.pro_id,NOW());
+    END IF;
+END;
+ ;;
+
+
+-- 04. Transactions
+
+-- Amity HANNAH, Manageuse au sein du magasin d'Arras, vient de prendre sa retraite. Il a été décidé, après de nombreuses tractations, de confier son poste
+-- au pépiniériste le plus ancien en poste dans ce magasin. Ce dernier voit alors son salaire augmenter de 5% et ses anciens collègues pépiniéristes passent
+-- sous sa direction.
+
+-- Ecrire la transaction permettant d'acter tous ces changements en base des données.
+
+-- La base de données ne contient actuellement que des employés en postes. Il a été choisi de garder en base une liste des anciens collaborateurs de
+-- l'entreprise parti en retraite. Il va donc vous falloir ajouter une ligne dans la table posts pour référencer les employés à la retraite.
+
+-- Décrire les opérations qui seront à réaliser sur la table posts.
+INSERT INTO `posts` (`pos_id`, `pos_libelle`) VALUES (NULL, 'Retraité(e)');
+
+-- Ecrire les requêtes correspondant à ces opéarations.
+-- A. Chercher qui va remplacer Amity HANNAH :
+SELECT CONCAT(emp_firstname, " ", emp_lastname) AS "Employé", emp_id AS "N° d'employé", emp_enter_date AS "Date d'embauche", posts.pos_libelle AS "Poste occupé"
+FROM employees
+JOIN posts ON posts.pos_id = employees.emp_pos_id
+JOIN shops ON shops.sho_id = employees.emp_sho_id
+WHERE employees.emp_pos_id = 14 AND shops.sho_city = "Arras"
+ORDER BY emp_enter_date ASC LIMIT 1
+
+-- B. Chercher les pépiniéristes d'Arras :
+SELECT CONCAT(emp_firstname, " ", emp_lastname) AS "Employé", emp_id AS "N° d'employé", emp_enter_date AS "Date d'embauche", posts.pos_libelle AS "Poste occupé"
+FROM employees
+JOIN posts ON posts.pos_id = employees.emp_pos_id
+JOIN shops ON shops.sho_id = employees.emp_sho_id
+WHERE employees.emp_pos_id = 14 AND shops.sho_city = "Arras"
+
+-- C. Chercher les employés managés par Amity HANNAH : (dans l'éventualité où elle en avait il aurait fallu leur donner Dorian HILLARY en responsable, ce qui n'est pas le cas)
+SELECT CONCAT(emp_firstname, " ", emp_lastname) AS "Employé"
+FROM employees
+WHERE employees.emp_superior_id = "59"
+
+-- D. Vérifier le salaire de Dorian HILLARY : (vu qu'on va devoir vérifier s'il prends bien 5%)
+SELECT CONCAT(employees.emp_firstname, " ", employees.emp_lastname) AS "Employé", employees.emp_salary
+FROM employees
+WHERE employees.emp_lastname = "HILLARY"
+
+
+-- Ecrire la transaction
+
+START TRANSACTION;
+
+UPDATE employees SET emp_pos_id = 36 WHERE emp_id = 59;
+UPDATE employees SET employees.emp_pos_id = 2 WHERE employees.emp_id = 10;
+UPDATE employees SET employees.emp_salary = (employees.emp_salary * 1.05) WHERE employees.emp_id = 10;
+UPDATE employees SET emp_superior_id = 10 WHERE employees.emp_sho_id = 2 AND employees.emp_pos_id = 14 AND employees.emp_id != 10;
+COMMIT;
+
+
+
+
